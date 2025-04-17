@@ -1,9 +1,7 @@
-import VanEmdeBoas.findNextPrev
-import VanEmdeBoas.InsertProof
-import VanEmdeBoas.DeleteProof
+import vanEmdeBoasSimplified.findNextPrev
 
 inductive vEBWrapper : Nat → Type where
-| Tree {u : Nat} (tree : vEBTree u) (invariant : correctInvariants tree) : vEBWrapper u
+| Tree {u : Nat} (tree : vEBTree u) (invariant : correctAux tree ∧ correctSummary tree) : vEBWrapper u
 
 def wrapperInsert {v : Nat} (tree : vEBWrapper v) (x : Fin (2 ^ 2 ^ v)) : vEBWrapper v :=
   match tree with
@@ -31,4 +29,4 @@ def wrapperFindPrev {v : Nat} (tree : vEBWrapper v) (x : Fin (2 ^ 2 ^ v)) : Opti
 #eval wrapperFindPrev (
         wrapperInsert (
             wrapperInsert (
-                wrapperCreate 6) 3) 23) 15
+                wrapperCreate 4) 3) 23) 15

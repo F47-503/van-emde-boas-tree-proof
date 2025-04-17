@@ -1,7 +1,7 @@
-name = "vanEmdeBoas"
+name = "vanEmdeBoasSimplified"
 version = "0.1.0"
 keywords = ["math"]
-defaultTargets = ["VanEmdeBoas"]
+defaultTargets = ["«vanEmdeBoasSimplified»"]
 
 [leanOptions]
 pp.unicode.fun = true # pretty-prints `fun a ↦ b`
@@ -12,4 +12,4 @@ name = "mathlib"
 scope = "leanprover-community"
 
 [[lean_lib]]
-name = "VanEmdeBoas"
+name = "«vanEmdeBoasSimplified»"

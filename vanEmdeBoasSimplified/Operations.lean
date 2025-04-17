@@ -1,4 +1,4 @@
-import VanEmdeBoas.Defs
+import vanEmdeBoasSimplified.Defs
 
 --create empty tree with universe order of v
 def createEmpty (v : Nat) : vEBTree v :=
@@ -12,14 +12,6 @@ def isEmpty {v : Nat} (tree : vEBTree v) : Prop :=
   | vEBTree.Leaf f => (∀ x, ¬f x)
   | vEBTree.Node _ summary _ _ => summary.isNone
 
-def isSingleton {v : Nat} (tree : vEBTree v) : Prop :=
-  match tree with
-  | vEBTree.Leaf f => ∃ x, (∀ y, f y ↔ x = y)
-  | vEBTree.Node _ summary _ _ =>
-    match summary with
-    | some (mi, ma) => mi == ma
-    | none => False
-
 --needed for case analysis on emptiness of subtrees
 instance {v : Nat} (tree : vEBTree v) : Decidable (isEmpty tree) :=
   match tree with
@@ -29,24 +21,6 @@ instance {v : Nat} (tree : vEBTree v) : Decidable (isEmpty tree) :=
       | isFalse h => isFalse h
   | vEBTree.Node _ none _ _ => isTrue rfl
   | vEBTree.Node _ (some _) _ _ => isFalse (fun h => nomatch h)
-
-instance {v : Nat} (tree : vEBTree v) : Decidable (isSingleton tree) :=
-  match tree with
-  | vEBTree.Leaf f =>
-    match inferInstanceAs (Decidable (∃ x, (∀ y, f y ↔ x = y))) with
-      | isTrue h  => isTrue h
-      | isFalse h => isFalse h
-  | vEBTree.Node _ none _ _ => isFalse (fun h => nomatch h)
-  | vEBTree.Node _ (some (mi, ma)) _ _ =>
-    if h : mi = ma
-    then
-      isTrue (by
-        simp [isSingleton]
-        exact h)
-    else
-      isFalse (by
-        simp [isSingleton]
-        exact h)
 
 --get minimum field from tree if it exists
 def getMin {v : Nat} (tree : vEBTree v) : Option (Fin (2 ^ 2 ^ v)) :=
@@ -121,10 +95,8 @@ def contains {v : Nat} (tree : vEBTree v) (x : Fin (2 ^ 2 ^ v)) : Prop :=
     | vEBTree.Leaf f => f x
   | u + 1 =>
     match tree with
-    | vEBTree.Node _ summary _ clusters =>
-      match summary with
-      | some (mi, _) => if mi = x then True else contains (clusters (high u x)) (low u x)
-      | none => False
+    | vEBTree.Node _ _ _ clusters =>
+      contains (clusters (high u x)) (low u x)
 
 --get minimum from tree without minimum field
 def constructiveMin {v : Nat} (tree : vEBTree v) : Option (Fin (2 ^ 2 ^ v)) :=
@@ -184,24 +156,16 @@ def recalcSummary {v : Nat} (tree : vEBTree v) : vEBTree v :=
   | 0 => tree
   | _ + 1 =>
     match tree with
-    | vEBTree.Node h summary aux clusters =>
-      match summary with
-      | some (mi, _) =>
-        vEBTree.Node
-          h
-          --just need to get min and max without corresponding field usage
-          (match constructiveMax tree with
-            | some ma => some (mi, ma)
-            | _ => some (mi, mi)
-          )
-          aux
-          clusters
-      | none =>
-        vEBTree.Node
-          h
-          none
-          aux
-          clusters
+    | vEBTree.Node h _ aux clusters =>
+      vEBTree.Node
+        h
+        --just need to get min and max without corresponding field usage
+        (match (constructiveMin tree, constructiveMax tree) with
+          | (some mi, some ma) => some (mi, ma)
+          | _ => none
+        )
+        aux
+        clusters
 
 --insert a value to tree
 --to insert a value, we insert to cluster and insert to aux index of cluster
@@ -212,42 +176,15 @@ def treeInsert {v : Nat} (tree : vEBTree v) (x : Fin (2 ^ 2 ^ v)): vEBTree v :=
     | vEBTree.Leaf f => vEBTree.Leaf (fun y => if y = x then True else f y)
   | u + 1 =>
     match tree with
-    | vEBTree.Node h summary aux clusters =>
-      match summary with
-      | some (mi, ma) =>
-        if mi = x
-        then
-          tree
-        else
-          if x < mi
-          then
-            vEBTree.Node
-              h
-              (x, max ma x)
-              (if isEmpty (clusters (high u mi))
-              then
-                treeInsert aux (high u mi)
-              else
-                aux)
-              (updateFin (clusters) (high u mi)
-                (treeInsert (clusters (high u mi)) (low u mi)))
-          else
-            vEBTree.Node
-              h
-              (mi, max ma x)
-              (if isEmpty (clusters (high u x))
-              then
-                treeInsert aux (high u x)
-              else
-                aux)
-              (updateFin (clusters) (high u x)
-                (treeInsert (clusters (high u x)) (low u x)))
-      | none =>
-        vEBTree.Node
-          h
-          (some (x, x))
-          aux
-          clusters
+    | vEBTree.Node h _ aux clusters =>
+      recalcSummary (
+        vEBTree.Node --fix min and max
+        h
+        (some (x, x)) --we don't care what to put here
+        (treeInsert aux (high u x))
+        (updateFin clusters (high u x)
+          (treeInsert (clusters (high u x)) (low u x))))
+
 --delete a value from tree
 --to delete a value, delete from cluster and delete cluster index from aux if became empty
 def treeDelete {v : Nat} (tree : vEBTree v) (x : Fin (2 ^ 2 ^ v)) : vEBTree v :=
@@ -258,50 +195,16 @@ def treeDelete {v : Nat} (tree : vEBTree v) (x : Fin (2 ^ 2 ^ v)) : vEBTree v :=
   | u + 1 =>
     match tree with
     | vEBTree.Node h summary aux clusters =>
-      match summary with
-      | some (mi, ma) =>
-        if  mi = x
-        then
-          if ma = mi
-          then
-            vEBTree.Node
-              h
-              none
-              aux
-              clusters
-          else
-            match constructiveMin tree with
-            --impossible case
-            | none =>
-              vEBTree.Node
-                h
-                none
-                aux
-                clusters
-            --delete minimum in underlying structure instead
-            | some res =>
-              recalcSummary (
-                vEBTree.Node
-                  h
-                  (some (res, ma))
-                  (if isEmpty (treeDelete (clusters (high u res)) (low u res))
-                  then
-                    treeDelete aux (high u res)
-                  else
-                    aux)
-                  (updateFin clusters (high u res) (treeDelete (clusters (high u res)) (low u res))))
-        else
-          recalcSummary (
-            vEBTree.Node
-              h
-              (some (mi, ma))
-              (if isEmpty (treeDelete (clusters (high u x)) (low u x))
-              then
-                treeDelete aux (high u x)
-              else
-                aux)
-              (updateFin clusters (high u x) (treeDelete (clusters (high u x)) (low u x))))
-      | none => tree
+      recalcSummary --fix min and max
+        (vEBTree.Node
+          h
+          summary --might keep summary, recalcSummary fixes it
+          (if isEmpty (treeDelete (clusters (high u x)) (low u x))
+            then
+              treeDelete aux (high u x)
+            else aux)
+          (updateFin clusters (high u x)
+            (treeDelete (clusters (high u x)) (low u x))))
 
 --find next value in tree after x
 def findNext {v : Nat} (tree : vEBTree v) (x : Fin (2 ^ 2 ^ v)) : Option (Fin (2 ^ 2 ^ v)) :=
@@ -347,6 +250,7 @@ def findNext {v : Nat} (tree : vEBTree v) (x : Fin (2 ^ 2 ^ v)) : Option (Fin (2
             else
               some (compose u res (getMin! u (clusters res) h_cluster_empty))
 
+--find previous value in tree before x
 def findPrev {v : Nat} (tree : vEBTree v) (x : Fin (2 ^ 2 ^ v)) : Option (Fin (2 ^ 2 ^ v)) :=
   match v with
   | 0 =>
@@ -360,17 +264,21 @@ def findPrev {v : Nat} (tree : vEBTree v) (x : Fin (2 ^ 2 ^ v)) : Option (Fin (2
   | u + 1 =>
     match tree with
     | vEBTree.Node _ _ aux clusters =>
+      --if cluster with x is empty, take upper bound in aux
       if h_empty : isEmpty (clusters (high u x))
       then
         match findPrev aux (high u x) with
+        --if previous does not exist, x is min
         | none => none
         | some res =>
           if h_cluster_empty : isEmpty (clusters res)
           then
+            --something is wrong, aux contains non-empty clusters
             none
           else
             some (compose u res (getMax! u (clusters res) h_cluster_empty))
       else
+        --try to take min in cluster
         if getMin! u (clusters (high u x)) h_empty < low u x
         then
           match findPrev (clusters (high u x)) (low u x) with

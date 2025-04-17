@@ -1,5 +1,5 @@
 import Mathlib.Tactic
-import VanEmdeBoas.Defs
+import vanEmdeBoasSimplified.Defs
 
 open Classical
 

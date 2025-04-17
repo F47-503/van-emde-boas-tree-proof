@@ -1,4 +1,4 @@
-import VanEmdeBoas.Invariants
+import vanEmdeBoasSimplified.InvariantsProof
 
 open Classical
 
