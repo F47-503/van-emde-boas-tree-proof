@@ -30,7 +30,8 @@ There are two branches :
 
 `DeleteProof` - proofs that `treeDelete` preserves invariants together with technical lemmas
 
-`InsertProof` - proofs that `treeDelete` preserves invariants together with technical lemmas
+`InsertProof` - proofs that `treeInsert` preserves invariants together with technical lemmas
 
 `findNextPrev` - proofs that under invariants `findNext` and `findPrev` are correct
+
 `Main` - simple example with wrapper
